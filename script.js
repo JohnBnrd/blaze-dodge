@@ -3,6 +3,8 @@
 // --- Game speed ---
 // Speed of the track in pixels per second: the reference for everything that scrolls
 const initialGameSpeed = 60;
+const gameSpeedMultiplier = 1.05; // +5% each time a fireball comes back
+const maxGameSpeed = 150; // cap: fireball at 600 px/s, about 1.2 s to react before it reaches the runner
 
 // --- Parallax ---
 // Each background layer scrolls at a fraction of the game speed
@@ -279,10 +281,17 @@ class GameScene extends Phaser.Scene {
       this.runner.play("run", true);
     }
 
-    // --- Fireball: once fully off the left edge, send it back to the right,
-    // with a speed matching the current game speed ---
+    // --- Fireball: once fully off the left edge, send it back to the right ---
     if (this.fireball.x <= -fireBallWidth / 2) {
       this.fireball.x = this.scale.width + fireBallWidth / 2;
+
+      // Difficulty: speed up the whole game, without going over the cap
+      this.gameSpeed = Math.min(
+        this.gameSpeed * gameSpeedMultiplier,
+        maxGameSpeed,
+      );
+
+      // The new fireball leaves at the updated game speed
       this.fireball.setVelocityX(this.gameSpeed * fireBallSpeedRatio);
     }
   }
