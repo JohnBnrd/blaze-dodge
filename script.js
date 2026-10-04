@@ -1,27 +1,48 @@
 // ===== Game settings =====
 
-// Parallax: each background layer scrolls at a fraction of the game speed
+// --- Parallax ---
+// Each background layer scrolls at a fraction of the game speed
 // (the farther the layer, the slower it moves)
 const cloudsSpeedFactor = 0.25;
 const mountainsSpeedFactor = 0.5;
 const hillsSpeedFactor = 0.75;
 const trackSpeedFactor = 1;
 
-// Track (in pixels)
-const trackHeight = 60;
+// Scrolling speed of the track, used as the reference for all layers
+let gameSpeed = 1;
 
-// Runner
+// --- Track ---
+const trackHeight = 60; // in pixels
+
+// --- Runner ---
 const runnerTrackOffset = 25; // how far the runner's feet sit inside the track, to run in the middle of a lane
 const groundHeight = 20; // thickness of the invisible physics floor
 const jumpPower = -440; // pixels per second (negative = upwards)
 
-// Fireball obstacle
+// Size of one frame in the runner sprite sheet
+const runnerFrameWidth = 96;
+const runnerFrameHeight = 128;
+
+// Physics body: about two thirds of the frame, to fit the drawn character
+const runnerBodyWidth = (runnerFrameWidth * 2) / 3;
+const runnerBodyHeight = Math.round((runnerFrameHeight * 2) / 3);
+const runnerBodyOffsetX = (runnerFrameWidth - runnerBodyWidth) / 2; // centered horizontally
+const runnerBodyOffsetY = runnerFrameHeight - runnerBodyHeight; // aligned with the bottom of the frame, so the feet stay on the floor
+
+// --- Fireball ---
 const fireBallHeightOffset = 40; // height above the runner's feet
-const fireBallWidth = 72;
 const fireBallSpeed = -250; // pixels per second, moving left
 
-// Scrolling speed of the track, used as the reference for all layers
-let gameSpeed = 1;
+// Size of one frame in the fireball sprite sheet
+const fireBallWidth = 72;
+const fireBallFrameWidth = fireBallWidth;
+const fireBallFrameHeight = 44;
+
+// Physics body: covers only the bright head, on the left of the frame (not the trail)
+const fireBallBodyWidth = Math.round(fireBallFrameWidth / 2); // the head is about half of the frame
+const fireBallBodyHeight = Math.round(fireBallFrameHeight) / 2;
+const fireBallBodyOffsetX = (fireBallFrameWidth - fireBallBodyWidth) / 4; // small gap from the left edge, where the head starts
+const fireBallBodyOffsetY = fireBallFrameHeight - fireBallBodyHeight; // aligned with the bottom of the frame
 
 class GameScene extends Phaser.Scene {
   constructor() {
@@ -30,22 +51,23 @@ class GameScene extends Phaser.Scene {
 
   // 1. Load assets
   preload() {
-    // Scenery
+    // --- Scenery ---
     this.load.image("sky", "assets/sky.png");
     this.load.image("clouds", "assets/clouds.png");
     this.load.image("mountains", "assets/mountains.png");
     this.load.image("hills", "assets/hills.png");
     this.load.image("track", "assets/track.png");
 
-    // Animated characters (regular grids, Phaser slices them by frame size)
+    // --- Animated characters ---
+    // Regular grids: Phaser slices them using the frame size
     this.load.spritesheet("runner", "assets/runner.png", {
-      frameWidth: 96,
-      frameHeight: 128,
+      frameWidth: runnerFrameWidth,
+      frameHeight: runnerFrameHeight,
     });
 
     this.load.spritesheet("fireball", "assets/fireball.png", {
-      frameWidth: 72,
-      frameHeight: 44,
+      frameWidth: fireBallFrameWidth,
+      frameHeight: fireBallFrameHeight,
     });
   }
 
@@ -78,6 +100,7 @@ class GameScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     // --- Runner ---
+    // Animations
     this.anims.create({
       key: "run",
       frames: this.anims.generateFrameNumbers("runner", { start: 10, end: 14 }),
@@ -92,13 +115,17 @@ class GameScene extends Phaser.Scene {
       repeat: 0, // play once per jump
     });
 
-    // Anchored at the feet, so its y is where it stands
+    // Sprite, anchored at the feet so its y is where it stands
     const runnerX = 100;
     const runnerY = this.scale.height - trackHeight + runnerTrackOffset;
     this.runner = this.physics.add
       .sprite(runnerX, runnerY, "runner")
       .setOrigin(0.5, 1)
       .play("run");
+
+    // Smaller physics body, so empty space around the character doesn't count as a hit
+    this.runner.body.setSize(runnerBodyWidth, runnerBodyHeight);
+    this.runner.body.setOffset(runnerBodyOffsetX, runnerBodyOffsetY);
 
     // Invisible static floor that stops the runner from falling through the track
     const floor = this.add
@@ -109,6 +136,7 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.runner, floor);
 
     // --- Fireball: starts just off the right edge and flies left ---
+    // Animation
     this.anims.create({
       key: "burn",
       frames: this.anims.generateFrameNumbers("fireball", {
@@ -119,6 +147,7 @@ class GameScene extends Phaser.Scene {
       repeat: -1,
     });
 
+    // Sprite, moving left at a constant speed
     const fireBallY = runnerY - fireBallHeightOffset;
     const fireBallX = this.scale.width + fireBallWidth / 2;
     this.fireball = this.physics.add
@@ -127,11 +156,30 @@ class GameScene extends Phaser.Scene {
       .setVelocityX(fireBallSpeed)
       .play("burn");
 
+    // Physics body limited to the head of the fireball
+    this.fireball.body.setSize(fireBallBodyWidth, fireBallBodyHeight);
+    this.fireball.body.setOffset(fireBallBodyOffsetX, fireBallBodyOffsetY);
+
     // It flies horizontally, so it must ignore gravity
     this.fireball.body.setAllowGravity(false);
 
     // --- Controls ---
     this.spaceKey = this.input.keyboard.addKey("SPACE");
+
+    // --- Collisions ---
+    // Detect the contact without pushing the runner
+    this.physics.add.overlap(
+      this.runner,
+      this.fireball,
+      this.hitFireball,
+      null,
+      this,
+    );
+  }
+
+  // Called when the runner touches the fireball
+  hitFireball() {
+    console.log("Hit!");
   }
 
   // 3. Game logic, every frame
