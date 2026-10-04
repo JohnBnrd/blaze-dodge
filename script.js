@@ -44,6 +44,9 @@ const fireBallBodyHeight = Math.round(fireBallFrameHeight) / 2;
 const fireBallBodyOffsetX = (fireBallFrameWidth - fireBallBodyWidth) / 4; // small gap from the left edge, where the head starts
 const fireBallBodyOffsetY = fireBallFrameHeight - fireBallBodyHeight; // aligned with the bottom of the frame
 
+// --- Score ---
+const pointsPerSecond = 10; // points earned for each second survived
+
 class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
@@ -79,6 +82,7 @@ class GameScene extends Phaser.Scene {
     // so it must be resumed after the pause triggered by the previous game over
     this.anims.resumeAll();
     this.isGameOver = false;
+    this.score = 0; // decimal value, only its integer part is displayed
 
     // --- Background and parallax layers, created back to front ---
     this.add.image(0, 0, "sky").setOrigin(0, 0);
@@ -194,6 +198,13 @@ class GameScene extends Phaser.Scene {
       null,
       this,
     );
+
+    // --- Score display, created last so it is drawn on top of everything ---
+    this.scoreText = this.add.text(16, 16, "Score: 0", {
+      fontFamily: "Arial black",
+      fontSize: "24px",
+      color: "#ffffff",
+    });
   }
 
   // Called when the runner touches the fireball: ends the run
@@ -228,7 +239,8 @@ class GameScene extends Phaser.Scene {
   }
 
   // 3. Game logic, every frame
-  update() {
+  // delta: time elapsed since the previous frame, in milliseconds
+  update(time, delta) {
     // --- Game over: only wait for Space to start a new run ---
     if (this.isGameOver) {
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
@@ -236,6 +248,11 @@ class GameScene extends Phaser.Scene {
       }
       return; // skip the rest of the game logic
     }
+
+    // --- Score: based on real time (delta, in ms), so it grows
+    // at the same pace whatever the screen refresh rate ---
+    this.score += (pointsPerSecond * delta) / 1000;
+    this.scoreText.setText("Score: " + Math.floor(this.score));
 
     // --- Parallax: scroll each layer at its own speed to create depth ---
     this.cloudsLayer.tilePositionX += gameSpeed * cloudsSpeedFactor;
