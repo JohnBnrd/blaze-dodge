@@ -1,12 +1,12 @@
-# Hurdle Runner
+# Blaze Dodge
 
-A 2D pixel-art runner game in the browser: a sprinter races through a sunset landscape and must jump over incoming fireballs. The game speeds up with every fireball dodged: how long can you last?
+A 2D pixel-art browser game: a sprinter races through a sunset landscape and must jump over incoming fireballs. The game speeds up with every fireball dodged: how long can you last?
 
-Built with **Phaser** and its Arcade Physics engine, as a full remake of a first version written in vanilla JavaScript with the Canvas API.
+Built with **Phaser** and its Arcade Physics engine, as a full remake of [Hurdle Runner](https://github.com/JohnBnrd/hurdle-runner), my first game written in vanilla JavaScript with the Canvas API.
 
 ## Play online
 
-[Play Hurdle Runner](https://johnbnrd.github.io/hurdle-runner/)
+[Play Blaze Dodge](https://johnbnrd.github.io/blaze-dodge/)
 
 ## How to play
 
@@ -32,11 +32,12 @@ Built with **Phaser** and its Arcade Physics engine, as a full remake of a first
 
 ## Project history
 
-This project was built in two versions:
+This game is the second version of a project built in two steps:
 
-- **v1.0, vanilla JavaScript**: everything coded by hand with the Canvas API, including the game loop, gravity, collision detection and game state. Available under the [`v1.0` tag](https://github.com/JohnBnrd/hurdle-runner/tree/v1.0).
-- **v2.0, Phaser**: a full remake with a game engine, pixel-art graphics and animations.
-  Building the first version without an engine made it clear what Phaser handles behind the scenes in the second one.
+- **Hurdle Runner, vanilla JavaScript**: everything coded by hand with the Canvas API, including the game loop, gravity, collision detection and game state. [Play it](https://johnbnrd.github.io/hurdle-runner/) or [see the code](https://github.com/JohnBnrd/hurdle-runner).
+- **Blaze Dodge, Phaser**: a full remake with a game engine, pixel-art graphics and animations. The repository keeps the whole Git history, from the first canvas commit to this version.
+
+Building the first version without an engine made it clear what Phaser handles behind the scenes in the second one.
 
 ## Run locally
 
@@ -54,13 +55,16 @@ Phaser loads the images from the `assets` folder, which browsers block when a pa
 
 ## What I learned
 
-### Version 1: vanilla JavaScript
+### Hurdle Runner: vanilla JavaScript
 
 - **Game loop architecture:** How to structure each frame into three steps (clear, update, draw) inside a game loop driven by `requestAnimationFrame`, ensuring smooth animations.
 - **2D collision detection:** How AABB (Axis-Aligned Bounding Box) collision detection works by checking horizontal and vertical overlap simultaneously on both axes.
 - **Jump physics and gravity:** How to simulate physical movement using speed, acceleration, and ground detection variables (`runnerY`, `runnerSpeedY`, `gravity`).
 - **State management & resetting:** How to manage global game states (`isGameOver`) and reset all dynamic variables cleanly without re-declaring them with `let`.
 
-### Version 2: Phaser
+### Blaze Dodge: Phaser
 
-<!-- À toi d'écrire cette section : 3 ou 4 notions apprises avec Phaser -->
+- **Scene lifecycle:** How a Phaser scene is organized into `preload`, `create` and `update`, and how the engine takes over clearing and redrawing: objects are created once, then only their properties change each frame.
+- **Arcade Physics:** How to use gravity, static bodies, `collider` and `overlap`, and how to resize physics bodies with `setSize` and `setOffset` so collisions match the drawn characters instead of the whole sprite frame.
+- **Frame-rate independent movement:** How to express speeds in pixels per second and use `delta` (the time between two frames) so the scenery, the obstacles and the score move at the same pace on a 60 Hz or a 120 Hz screen.
+- **Restarting a scene cleanly:** How `scene.restart()` resets the game by running `create()` again, and why shared systems such as the animation manager survive the restart and must be handled separately (resuming animations, creating them only once).
