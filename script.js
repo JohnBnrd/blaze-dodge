@@ -307,7 +307,7 @@ const config = {
     default: "arcade",
     arcade: {
       gravity: { y: 1000 },
-      debug: true, // shows physics bodies, to remove before release
+      debug: false, // shows physics bodies, to remove before release
     },
   },
   scene: GameScene,
