@@ -1,5 +1,9 @@
 // ===== Game settings =====
 
+// --- Game speed ---
+// Speed of the track in pixels per second: the reference for everything that scrolls
+const initialGameSpeed = 60;
+
 // --- Parallax ---
 // Each background layer scrolls at a fraction of the game speed
 // (the farther the layer, the slower it moves)
@@ -7,9 +11,6 @@ const cloudsSpeedFactor = 0.25;
 const mountainsSpeedFactor = 0.5;
 const hillsSpeedFactor = 0.75;
 const trackSpeedFactor = 1;
-
-// Scrolling speed of the track, used as the reference for all layers
-let gameSpeed = 1;
 
 // --- Track ---
 const trackHeight = 60; // in pixels
@@ -31,7 +32,7 @@ const runnerBodyOffsetY = runnerFrameHeight - runnerBodyHeight; // aligned with 
 
 // --- Fireball ---
 const fireBallHeightOffset = 40; // height above the runner's feet
-const fireBallSpeed = -250; // pixels per second, moving left
+const fireBallSpeedRatio = -4; // fireball speed = game speed x this ratio (negative = moving left, faster than the track)
 
 // Size of one frame in the fireball sprite sheet
 const fireBallWidth = 72;
@@ -83,6 +84,7 @@ class GameScene extends Phaser.Scene {
     this.anims.resumeAll();
     this.isGameOver = false;
     this.score = 0; // decimal value, only its integer part is displayed
+    this.gameSpeed = initialGameSpeed; // stored on the scene so every new run starts at the initial speed
 
     // --- Background and parallax layers, created back to front ---
     this.add.image(0, 0, "sky").setOrigin(0, 0);
@@ -170,13 +172,13 @@ class GameScene extends Phaser.Scene {
       });
     }
 
-    // Sprite, moving left at a constant speed
+    // Sprite, moving left at a speed tied to the game speed
     const fireBallY = runnerY - fireBallHeightOffset;
     const fireBallX = this.scale.width + fireBallWidth / 2;
     this.fireball = this.physics.add
       .sprite(fireBallX, fireBallY, "fireball")
       .setOrigin(0.5, 0.5)
-      .setVelocityX(fireBallSpeed)
+      .setVelocityX(this.gameSpeed * fireBallSpeedRatio)
       .play("burn");
 
     // Physics body limited to the head of the fireball
@@ -255,10 +257,15 @@ class GameScene extends Phaser.Scene {
     this.scoreText.setText("Score: " + Math.floor(this.score));
 
     // --- Parallax: scroll each layer at its own speed to create depth ---
-    this.cloudsLayer.tilePositionX += gameSpeed * cloudsSpeedFactor;
-    this.mountainsLayer.tilePositionX += gameSpeed * mountainsSpeedFactor;
-    this.hillsLayer.tilePositionX += gameSpeed * hillsSpeedFactor;
-    this.trackLayer.tilePositionX += gameSpeed * trackSpeedFactor;
+    // Speeds are in pixels per second, converted to this frame with delta
+    this.cloudsLayer.tilePositionX +=
+      this.gameSpeed * cloudsSpeedFactor * (delta / 1000);
+    this.mountainsLayer.tilePositionX +=
+      this.gameSpeed * mountainsSpeedFactor * (delta / 1000);
+    this.hillsLayer.tilePositionX +=
+      this.gameSpeed * hillsSpeedFactor * (delta / 1000);
+    this.trackLayer.tilePositionX +=
+      this.gameSpeed * trackSpeedFactor * (delta / 1000);
 
     // --- Runner: jump only when standing on the floor (no double jump),
     // otherwise go back to running once landed ---
@@ -272,9 +279,11 @@ class GameScene extends Phaser.Scene {
       this.runner.play("run", true);
     }
 
-    // --- Fireball: once fully off the left edge, send it back to the right ---
+    // --- Fireball: once fully off the left edge, send it back to the right,
+    // with a speed matching the current game speed ---
     if (this.fireball.x <= -fireBallWidth / 2) {
       this.fireball.x = this.scale.width + fireBallWidth / 2;
+      this.fireball.setVelocityX(this.gameSpeed * fireBallSpeedRatio);
     }
   }
 }
