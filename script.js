@@ -72,7 +72,14 @@ class GameScene extends Phaser.Scene {
   }
 
   // 2. Create game objects
+  // Also called again by scene.restart(), at the start of every new run
   create() {
+    // --- New run setup ---
+    // The animation manager is shared by the whole game and survives a restart,
+    // so it must be resumed after the pause triggered by the previous game over
+    this.anims.resumeAll();
+    this.isGameOver = false;
+
     // --- Background and parallax layers, created back to front ---
     this.add.image(0, 0, "sky").setOrigin(0, 0);
 
@@ -100,20 +107,30 @@ class GameScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     // --- Runner ---
-    // Animations
-    this.anims.create({
-      key: "run",
-      frames: this.anims.generateFrameNumbers("runner", { start: 10, end: 14 }),
-      frameRate: 10,
-      repeat: -1, // loop forever
-    });
+    // Animations, created only once: they are kept by the game across restarts
+    if (!this.anims.exists("run")) {
+      this.anims.create({
+        key: "run",
+        frames: this.anims.generateFrameNumbers("runner", {
+          start: 10,
+          end: 14,
+        }),
+        frameRate: 10,
+        repeat: -1, // loop forever
+      });
+    }
 
-    this.anims.create({
-      key: "jump",
-      frames: this.anims.generateFrameNumbers("runner", { start: 15, end: 19 }),
-      frameRate: 10,
-      repeat: 0, // play once per jump
-    });
+    if (!this.anims.exists("jump")) {
+      this.anims.create({
+        key: "jump",
+        frames: this.anims.generateFrameNumbers("runner", {
+          start: 15,
+          end: 19,
+        }),
+        frameRate: 10,
+        repeat: 0, // play once per jump
+      });
+    }
 
     // Sprite, anchored at the feet so its y is where it stands
     const runnerX = 100;
@@ -136,16 +153,18 @@ class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.runner, floor);
 
     // --- Fireball: starts just off the right edge and flies left ---
-    // Animation
-    this.anims.create({
-      key: "burn",
-      frames: this.anims.generateFrameNumbers("fireball", {
-        start: 0,
-        end: 15,
-      }),
-      frameRate: 15,
-      repeat: -1,
-    });
+    // Animation, created only once (kept across restarts)
+    if (!this.anims.exists("burn")) {
+      this.anims.create({
+        key: "burn",
+        frames: this.anims.generateFrameNumbers("fireball", {
+          start: 0,
+          end: 15,
+        }),
+        frameRate: 15,
+        repeat: -1,
+      });
+    }
 
     // Sprite, moving left at a constant speed
     const fireBallY = runnerY - fireBallHeightOffset;
@@ -177,13 +196,47 @@ class GameScene extends Phaser.Scene {
     );
   }
 
-  // Called when the runner touches the fireball
+  // Called when the runner touches the fireball: ends the run
   hitFireball() {
-    console.log("Hit!");
+    // --- Freeze the game ---
+    this.isGameOver = true; // stops the parallax and controls in update()
+    this.physics.pause(); // stops the runner and the fireball
+    this.anims.pauseAll(); // stops the running and burning animations
+
+    // --- Game over screen, centered on the canvas ---
+    this.add
+      .text(this.scale.width / 2, this.scale.height / 2, "Game Over !!", {
+        fontFamily: "Arial black",
+        fontSize: "32px",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5, 0.5);
+
+    // Restart hint, just below the title
+    this.add
+      .text(
+        this.scale.width / 2,
+        this.scale.height / 2 + 35,
+        "Press Space to restart",
+        {
+          fontFamily: "Arial",
+          fontSize: "25px",
+          color: "#dbdb05",
+        },
+      )
+      .setOrigin(0.5, 0.5);
   }
 
   // 3. Game logic, every frame
   update() {
+    // --- Game over: only wait for Space to start a new run ---
+    if (this.isGameOver) {
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        this.scene.restart(); // runs create() again, resetting everything
+      }
+      return; // skip the rest of the game logic
+    }
+
     // --- Parallax: scroll each layer at its own speed to create depth ---
     this.cloudsLayer.tilePositionX += gameSpeed * cloudsSpeedFactor;
     this.mountainsLayer.tilePositionX += gameSpeed * mountainsSpeedFactor;
