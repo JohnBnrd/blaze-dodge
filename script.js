@@ -1,32 +1,43 @@
+// ===== Game settings =====
+
+// Parallax: each background layer scrolls at a fraction of the game speed
+// (the farther the layer, the slower it moves)
 const cloudsSpeedFactor = 0.25;
 const mountainsSpeedFactor = 0.5;
 const hillsSpeedFactor = 0.75;
 const trackSpeedFactor = 1;
 
+// Track (in pixels)
 const trackHeight = 60;
-const runnerTrackOffset = 25;
-const groundHeight = 20;
 
-const jumpPower = -440;
+// Runner
+const runnerTrackOffset = 25; // how far the runner's feet sit inside the track, to run in the middle of a lane
+const groundHeight = 20; // thickness of the invisible physics floor
+const jumpPower = -440; // pixels per second (negative = upwards)
 
-const fireBallHeightOffset = 40;
+// Fireball obstacle
+const fireBallHeightOffset = 40; // height above the runner's feet
 const fireBallWidth = 72;
-const fireBallSpeed = -250;
+const fireBallSpeed = -250; // pixels per second, moving left
 
+// Scrolling speed of the track, used as the reference for all layers
 let gameSpeed = 1;
+
 class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
   }
 
+  // 1. Load assets
   preload() {
-    // 1. Load assets
+    // Scenery
     this.load.image("sky", "assets/sky.png");
     this.load.image("clouds", "assets/clouds.png");
     this.load.image("mountains", "assets/mountains.png");
     this.load.image("hills", "assets/hills.png");
     this.load.image("track", "assets/track.png");
 
+    // Animated characters (regular grids, Phaser slices them by frame size)
     this.load.spritesheet("runner", "assets/runner.png", {
       frameWidth: 96,
       frameHeight: 128,
@@ -38,10 +49,11 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // 2. Create game objects
   create() {
-    // 2. Create game objects
-    // 1. BACKGROUND & PARALLAX LAYERS (rendered back to front)
+    // --- Background and parallax layers, created back to front ---
     this.add.image(0, 0, "sky").setOrigin(0, 0);
+
     this.cloudsLayer = this.add
       .tileSprite(0, 0, this.scale.width, this.scale.height, "clouds")
       .setOrigin(0, 0);
@@ -54,7 +66,7 @@ class GameScene extends Phaser.Scene {
       .tileSprite(0, 0, this.scale.width, this.scale.height, "hills")
       .setOrigin(0, 0);
 
-    // Foreground track
+    // --- Foreground track, along the bottom of the screen ---
     this.trackLayer = this.add
       .tileSprite(
         0,
@@ -65,20 +77,22 @@ class GameScene extends Phaser.Scene {
       )
       .setOrigin(0, 0);
 
+    // --- Runner ---
     this.anims.create({
       key: "run",
       frames: this.anims.generateFrameNumbers("runner", { start: 10, end: 14 }),
       frameRate: 10,
-      repeat: -1,
+      repeat: -1, // loop forever
     });
 
     this.anims.create({
       key: "jump",
       frames: this.anims.generateFrameNumbers("runner", { start: 15, end: 19 }),
       frameRate: 10,
-      repeat: 0,
+      repeat: 0, // play once per jump
     });
 
+    // Anchored at the feet, so its y is where it stands
     const runnerX = 100;
     const runnerY = this.scale.height - trackHeight + runnerTrackOffset;
     this.runner = this.physics.add
@@ -86,16 +100,15 @@ class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .play("run");
 
+    // Invisible static floor that stops the runner from falling through the track
     const floor = this.add
       .rectangle(0, runnerY, this.scale.width, groundHeight)
       .setOrigin(0, 0);
 
     this.physics.add.existing(floor, true);
-
     this.physics.add.collider(this.runner, floor);
 
-    this.spaceKey = this.input.keyboard.addKey("SPACE");
-
+    // --- Fireball: starts just off the right edge and flies left ---
     this.anims.create({
       key: "burn",
       frames: this.anims.generateFrameNumbers("fireball", {
@@ -114,16 +127,23 @@ class GameScene extends Phaser.Scene {
       .setVelocityX(fireBallSpeed)
       .play("burn");
 
+    // It flies horizontally, so it must ignore gravity
     this.fireball.body.setAllowGravity(false);
+
+    // --- Controls ---
+    this.spaceKey = this.input.keyboard.addKey("SPACE");
   }
 
+  // 3. Game logic, every frame
   update() {
-    // 3. Game logic, every frame
+    // --- Parallax: scroll each layer at its own speed to create depth ---
     this.cloudsLayer.tilePositionX += gameSpeed * cloudsSpeedFactor;
     this.mountainsLayer.tilePositionX += gameSpeed * mountainsSpeedFactor;
     this.hillsLayer.tilePositionX += gameSpeed * hillsSpeedFactor;
     this.trackLayer.tilePositionX += gameSpeed * trackSpeedFactor;
 
+    // --- Runner: jump only when standing on the floor (no double jump),
+    // otherwise go back to running once landed ---
     if (
       Phaser.Input.Keyboard.JustDown(this.spaceKey) &&
       this.runner.body.touching.down
@@ -133,9 +153,15 @@ class GameScene extends Phaser.Scene {
     } else if (this.runner.body.touching.down) {
       this.runner.play("run", true);
     }
+
+    // --- Fireball: once fully off the left edge, send it back to the right ---
+    if (this.fireball.x <= -fireBallWidth / 2) {
+      this.fireball.x = this.scale.width + fireBallWidth / 2;
+    }
   }
 }
 
+// Phaser settings: game size, pixel-art rendering and Arcade Physics
 const config = {
   type: Phaser.AUTO,
   width: 800,
@@ -145,7 +171,7 @@ const config = {
     default: "arcade",
     arcade: {
       gravity: { y: 1000 },
-      debug: true,
+      debug: true, // shows physics bodies, to remove before release
     },
   },
   scene: GameScene,
